@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Explorer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@7/turf.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; }
+  #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+  /* ── Floating panels ── */
+  .panel {
+    position: absolute; z-index: 1000;
+    background: rgba(255,255,255,0.94);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+  }
+
+  #left-panel {
+    top: 12px; left: 12px; width: 210px;
+    display: flex; flex-direction: column;
+  }
+
+  #right-panel {
+    top: 12px; right: 12px; width: 290px;
+    max-height: calc(100vh - 24px);
+    display: none; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Panel sections ── */
+  .panel-section {
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .panel-section:last-child { border-bottom: none; }
+
+  .panel-title {
+    padding: 10px 14px 8px;
+    font-size: 14px; font-weight: 700; color: #1a1a1a;
+  }
+
+  .panel-subtitle {
+    padding: 0 14px 8px;
+    font-size: 11px; color: #888;
+    line-height: 1.4;
+  }
+
+  .section-header {
+    padding: 8px 14px 6px;
+    font-size: 11px; font-weight: 600; color: #555;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
+  /* ── MVA slider ── */
+  #slider-section { padding: 8px 14px 12px; }
+  #slider-section .section-header { padding: 0 0 6px; }
+
+  .slider-labels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: #666; margin-bottom: 4px;
+  }
+
+  .slider-container {
+    position: relative; height: 24px;
+  }
+
+  .slider-track {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 100%; height: 4px;
+    background: #ddd; border-radius: 2px;
+  }
+
+  #slider-fill {
+    position: absolute; top: 50%; transform: translateY(-50%); height: 4px;
+    background: #1a73e8; border-radius: 2px;
+  }
+
+  .slider-container input[type="range"] {
+    position: absolute; top: 4px; width: 100%; margin: 0;
+    -webkit-appearance: none; appearance: none;
+    background: transparent; pointer-events: none;
+  }
+  .slider-container input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #1a73e8; border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: auto; cursor: pointer;
+  }
+
+  #slider-value {
+    font-size: 11px; color: #444; margin-top: 6px; text-align: center;
+  }
+
+  /* ── Voltage legend ── */
+  #voltage-legend-section { padding: 8px 14px 10px; }
+  #voltage-legend-section .section-header { padding: 0 0 6px; }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 0; cursor: pointer; user-select: none;
+  }
+  .legend-item input[type="checkbox"] { margin: 0; cursor: pointer; }
+
+  .legend-line {
+    width: 24px; height: 0; border-top-style: solid; display: inline-block; flex-shrink: 0;
+  }
+
+  .legend-label { font-size: 12px; color: #333; flex: 1; }
+  .legend-mva-badge {
+    font-size: 10px; color: #888; background: #f0f0f0;
+    padding: 1px 4px; border-radius: 3px;
+  }
+
+  .legend-item.dimmed .legend-label { color: #bbb; }
+  .legend-item.dimmed .legend-line { opacity: 0.3; }
+
+  /* ── Infrastructure legend ── */
+  #infra-legend-section { padding: 8px 14px 10px; }
+  #infra-legend-section .section-header { padding: 0 0 6px; }
+
+  .infra-legend-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 0; font-size: 12px; color: #333;
+  }
+
+  /* ── Right panel results ── */
+  #results-header {
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid #e8e8e8;
+    flex-shrink: 0;
+    display: flex; align-items: flex-start;
+  }
+  #results-header h3 { font-size: 13px; font-weight: 700; color: #1a1a1a; flex: 1; }
+  #results-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 18px; color: #999; line-height: 1;
+    padding: 0 0 0 8px;
+  }
+  #results-close:hover { color: #333; }
+  #results-subhead { font-size: 11px; color: #888; margin-top: 2px; }
+
+  #results-container {
+    flex: 1; overflow-y: auto; min-height: 0;
+  }
+
+  /* ── Voltage groups ── */
+  .voltage-group { border-bottom: 1px solid #f0f0f0; }
+  .voltage-group:last-child { border-bottom: none; }
+
+  .voltage-group-header {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 14px 8px; cursor: pointer;
+    background: #f5f5f5;
+    font-size: 14px; font-weight: 700; color: #1a1a1a;
+  }
+  .voltage-group-header:hover { background: #ececec; }
+
+  .voltage-group-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .voltage-group-label { flex: 1; }
+
+  .voltage-group-count {
+    font-size: 11px; color: #888; font-weight: 400;
+  }
+  .voltage-group-ranges {
+    width: 100%; margin-top: 2px;
+    font-size: 10px; color: #999; font-weight: 400;
+  }
+
+  .voltage-group-chevron {
+    font-size: 10px; color: #999;
+  }
+
+  .voltage-group-branches { display: none; }
+  .voltage-group-branches.open { display: block; }
+
+  /* ── Substation groups ── */
+  .sub-group { border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .sub-group:last-child { border-bottom: none; }
+  .sub-group-header {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+    padding: 8px 14px 6px 22px; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: #222;
+  }
+  .sub-group-header:hover { background: rgba(0,0,0,0.03); }
+  .sub-group-chevron { font-size: 9px; color: #bbb; width: 10px; }
+  .sub-group-label { font-weight: 700; color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .sub-group-id { font-weight: 400; color: #aaa; font-size: 10px; margin-left: auto; }
+  .sub-group-name {
+    width: 100%;
+    font-size: 11px; font-weight: 500; color: #333;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sub-group-summary {
+    width: 100%; margin-top: 1px;
+    font-weight: 400; color: #888; font-size: 10px;
+  }
+  .sub-group-children { display: none; }
+  .sub-group-children.open { display: block; }
+
+  /* ── Circuit groups ── */
+  .circuit-group { border-bottom: 1px solid rgba(0,0,0,0.04); }
+  .circuit-group:last-child { border-bottom: none; }
+  .circuit-group-header {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px 14px 4px 36px; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: #333;
+  }
+  .circuit-group-header:hover { background: rgba(0,0,0,0.02); }
+  .circuit-group-chevron { font-size: 9px; color: #bbb; width: 10px; }
+  .circuit-group-label { font-weight: 700; color: #555; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .circuit-group-name { flex: 1; }
+  .circuit-group-id { font-weight: 400; color: #aaa; font-size: 10px; }
+  .circuit-group-summary {
+    width: 100%; margin-top: 1px;
+    font-weight: 400; color: #888; font-size: 10px;
+  }
+  .circuit-group-branches { display: none; }
+  .circuit-group-branches.open { display: block; }
+
+  /* ── Branch cards (right panel) ── */
+  .branch-card {
+    padding: 6px 14px 6px 50px; border-bottom: 1px solid #f5f5f5;
+    cursor: pointer; transition: background 0.12s;
+  }
+  .branch-card:hover { background: #f8f8f8; }
+  .branch-card.selected { background: #e8f0fe; border-left: 3px solid #1a73e8; padding-left: 47px; }
+  .branch-card-label { font-weight: 700; color: #555; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 1px; }
+
+  .branch-card-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+
+  .branch-card-name {
+    font-size: 12px; font-weight: 600; color: #1a1a1a;
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .branch-card-badge {
+    font-size: 11px; color: #888; background: #f0f0f0;
+    padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+  }
+
+  .branch-card-meta {
+    font-size: 11px; color: #888; margin-top: 2px;
+  }
+  .branch-card-meta span { margin-right: 8px; }
+
+  .branch-rating-badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 1px 5px; border-radius: 3px; margin-left: 4px;
+  }
+
+  .no-results {
+    padding: 40px 20px; text-align: center; color: #aaa; font-size: 12px;
+  }
+
+  /* ── Loading overlay ── */
+  #loading {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #666;
+  }
+
+  /* ── Map updating spinner ── */
+  #map-spinner {
+    position: absolute; top: 50%; left: 50%; z-index: 1500;
+    transform: translate(-50%, -50%);
+    background: rgba(255,255,255,0.9); border-radius: 8px;
+    padding: 10px 16px; font-size: 12px; color: #666;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    display: none; align-items: center; gap: 8px;
+  }
+  #map-spinner.visible { display: flex; }
+  .spinner-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #1a73e8; animation: pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">Loading cable data...</div>
+<div id="map-spinner"><span class="spinner-dot"></span> Updating...</div>
+<div id="map"></div>
+
+<div class="panel" id="left-panel">
+  <div class="panel-section">
+    <div class="panel-title">Site Explorer</div>
+    <div class="panel-subtitle">Click map to place a site</div>
+  </div>
+
+  <div class="panel-section" id="slider-section">
+    <div class="section-header">Min capacity (MVA)</div>
+    <div class="slider-labels">
+      <span id="slider-min-label">0</span>
+      <span id="slider-max-label">100</span>
+    </div>
+    <div class="slider-container">
+      <div class="slider-track"></div>
+      <div class="slider-fill" id="slider-fill"></div>
+      <input type="range" id="mva-min-slider" min="0" max="100" value="0" step="0.5">
+      <input type="range" id="mva-max-slider" min="0" max="100" value="100" step="0.5">
+    </div>
+    <div id="slider-value">Showing all capacities</div>
+  </div>
+
+  <div class="panel-section" id="voltage-legend-section">
+    <div class="section-header">Voltage</div>
+    <div id="voltage-legend-list"></div>
+  </div>
+
+  <div class="panel-section" id="infra-legend-section">
+    <div class="section-header">Infrastructure</div>
+    <div class="infra-legend-item">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#e67e22;border:1px solid #fff;box-shadow:0 0 0 1px #ccc;"></span>
+      Transformer (pole)
+    </div>
+    <div class="infra-legend-item">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8e44ad;border:1px solid #fff;box-shadow:0 0 0 1px #ccc;"></span>
+      Transformer (ground)
+    </div>
+    <div class="infra-legend-item">
+      <span style="display:inline-block;width:16px;height:8px;background:rgba(44,62,80,0.15);border:1px solid rgba(44,62,80,0.4);"></span>
+      Substation
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="right-panel">
+  <div id="results-header">
+    <div>
+      <h3 id="results-title">Connection Options</h3>
+      <div id="results-subhead">&ndash;</div>
+    </div>
+    <button id="results-close" title="Clear site">&times;</button>
+  </div>
+  <div id="results-container">
+    <div class="no-results">Click the map to search</div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+const SEARCH_RADIUS_KM = 1.0;
+const VOLTAGE_MVA_THRESHOLDS = { 6.6: 0, 11: 0, 20: 0, 33: 7, 66: 15, 132: 25 };
+const VOLTAGE_ORDER = [6.6, 11, 20, 33, 66, 132];
+
+// ---------------------------------------------------------------------------
+// Voltage colours
+// ---------------------------------------------------------------------------
+function getVoltageColor(voltage) {
+  if (voltage == null || isNaN(voltage)) return '#555555';
+  if (voltage > 132) return '#ffc107';
+  if (voltage >= 132) return '#7605ff';
+  if (voltage >= 66) return '#0078bd';
+  if (voltage >= 33) return '#1c7f01';
+  if (voltage >= 20) return '#f57c00';
+  if (voltage >= 11) return '#f00000';
+  if (voltage >= 6.6) return '#e91e8c';
+  if (voltage >= 1) return '#00008b';
+  return '#555555';
+}
+
+function ratingToWeight(amps) {
+  if (!amps) return 2;
+  const clamped = Math.max(50, Math.min(600, amps));
+  return 2 + (clamped - 50) / (600 - 50) * 6;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let allFeatures = [];
+let branchIndex = {};
+let circuitIndex = {};
+let siteMarker = null;
+let siteLatlng = null;
+let connectionLayer = null;
+let highlightLayer = null;
+let segmentHoverLayer = null;
+let selectedBranchId = null;
+let searchResults = [];
+let expandedVoltages = new Set();
+let expandedSubstations = new Set();  // keyed by "voltage_source"
+let expandedCircuits = new Set();     // keyed by "voltage_source_circuitId"
+let expandAllOnNextRender = false;
+let mvaMin = 0;
+let mvaMax = 100;
+let mvaSliderMin = 0;
+let mvaSliderMax = 100;
+const hiddenVoltages = new Set();
+
+// ---------------------------------------------------------------------------
+// URL hash: #zoom/lat/lng or #zoom/lat/lng/siteLat/siteLng
+// ---------------------------------------------------------------------------
+function parseHash() {
+  const hash = location.hash.replace(/^#/, '');
+  if (!hash) return null;
+  const parts = hash.split('/');
+  if (parts.length < 3) return null;
+  const zoom = parseFloat(parts[0]);
+  const lat = parseFloat(parts[1]);
+  const lng = parseFloat(parts[2]);
+  if (isNaN(zoom) || isNaN(lat) || isNaN(lng)) return null;
+  let siteLat = null, siteLng = null;
+  if (parts.length >= 5) {
+    siteLat = parseFloat(parts[3]);
+    siteLng = parseFloat(parts[4]);
+    if (isNaN(siteLat) || isNaN(siteLng)) { siteLat = null; siteLng = null; }
+  }
+  return { zoom, lat, lng, siteLat, siteLng };
+}
+
+function updateHash() {
+  const c = map.getCenter();
+  const z = map.getZoom();
+  const parts = [z.toFixed(1), c.lat.toFixed(5), c.lng.toFixed(5)];
+  if (siteLatlng) {
+    parts.push(siteLatlng.lat.toFixed(5), siteLatlng.lng.toFixed(5));
+  }
+  const newHash = '#' + parts.join('/');
+  if (location.hash !== newHash) {
+    history.replaceState(null, '', newHash);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Map initialization
+// ---------------------------------------------------------------------------
+const initialView = parseHash();
+const map = L.map('map', { zoomControl: true }).setView(
+  initialView ? [initialView.lat, initialView.lng] : [50.72, -3.53],
+  initialView ? initialView.zoom : 13,
+);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+let casingLayer = null;
+let cablesLayer = null;
+let substationsLayer = null;
+let transformersLayer = null;
+
+// ---------------------------------------------------------------------------
+// Visibility helpers
+// ---------------------------------------------------------------------------
+function isBranchVisible(branchId) {
+  const branch = branchIndex[branchId];
+  if (!branch) return true;
+  const s = branch.stats;
+  if (s.branchRatingMva != null && s.branchRatingMva < mvaMin) return false;
+  const threshold = VOLTAGE_MVA_THRESHOLDS[s.voltage] || 0;
+  if (threshold > 0 && mvaMax < threshold) return false;
+  return true;
+}
+
+function isVoltageVisible(voltage) {
+  if (hiddenVoltages.has(voltage)) return false;
+  const threshold = VOLTAGE_MVA_THRESHOLDS[voltage] || 0;
+  if (threshold > 0 && mvaMax < threshold) return false;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Style functions
+// ---------------------------------------------------------------------------
+function cableStyle(feature) {
+  const p = feature.properties;
+
+  if (!isVoltageVisible(p.voltage_kv)) {
+    return { weight: 0, opacity: 0, interactive: false };
+  }
+
+  const baseWeight = ratingToWeight(p.rating_amps);
+  const baseColor = getVoltageColor(p.voltage_kv);
+  const unrated = p.rating_amps == null;
+
+  // Determine if this segment's branch passes the MVA filter
+  const branchIds = p.branch_ids ? p.branch_ids.split('|').filter(Boolean) : [];
+  const anyBranchVisible = branchIds.length === 0 || branchIds.some(bid => isBranchVisible(bid));
+
+  if (selectedBranchId) {
+    const inBranch = branchIds.includes(selectedBranchId);
+    return {
+      color: baseColor,
+      weight: baseWeight * (inBranch ? 1.5 : 0.7),
+      opacity: inBranch ? 1.0 : 0.1,
+      lineCap: 'round', lineJoin: 'round',
+      dashArray: unrated ? '2,4' : null,
+    };
+  }
+
+  if (!anyBranchVisible) {
+    return {
+      color: baseColor,
+      weight: baseWeight,
+      opacity: 0.12,
+      lineCap: 'round', lineJoin: 'round',
+      dashArray: unrated ? '2,4' : null,
+    };
+  }
+
+  return {
+    color: baseColor,
+    weight: baseWeight,
+    opacity: 0.7,
+    lineCap: 'round', lineJoin: 'round',
+    dashArray: unrated ? '2,4' : null,
+  };
+}
+
+function casingStyle(feature) {
+  const p = feature.properties;
+
+  if (!isVoltageVisible(p.voltage_kv)) {
+    return { weight: 0, opacity: 0 };
+  }
+
+  const baseWeight = ratingToWeight(p.rating_amps);
+
+  const branchIds = p.branch_ids ? p.branch_ids.split('|').filter(Boolean) : [];
+  const anyBranchVisible = branchIds.length === 0 || branchIds.some(bid => isBranchVisible(bid));
+
+  if (selectedBranchId) {
+    const inBranch = branchIds.includes(selectedBranchId);
+    return {
+      color: '#ffffff',
+      weight: baseWeight * (inBranch ? 1.5 : 0.7) + 4,
+      opacity: inBranch ? 0.9 : 0.08,
+      lineCap: 'round', lineJoin: 'round',
+    };
+  }
+
+  if (!anyBranchVisible) {
+    return {
+      color: '#ffffff',
+      weight: baseWeight + 4,
+      opacity: 0.1,
+      lineCap: 'round', lineJoin: 'round',
+    };
+  }
+
+  return {
+    color: '#ffffff',
+    weight: baseWeight + 4,
+    opacity: 0.6,
+    lineCap: 'round', lineJoin: 'round',
+  };
+}
+
+function substationStyle() {
+  return {
+    fillColor: '#2c3e50', fillOpacity: 0.25,
+    color: '#2c3e50', weight: 2, opacity: 0.7,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Build branch index (extended: branchRatingMva + uniqueFeatures)
+// ---------------------------------------------------------------------------
+function buildBranchIndex(geojson) {
+  const index = {};
+  allFeatures = geojson.features;
+
+  for (const feature of geojson.features) {
+    const branchIds = feature.properties.branch_ids;
+    if (!branchIds) continue;
+
+    for (const bid of branchIds.split('|')) {
+      if (!bid) continue;
+      if (!index[bid]) {
+        index[bid] = { features: [], stats: null };
+      }
+      index[bid].features.push(feature);
+    }
+  }
+
+  for (const [id, branch] of Object.entries(index)) {
+    const feats = branch.features;
+    const materials = new Set();
+    const types = new Set();
+    let totalLength = 0;
+    let minRating = Infinity;
+    let minRatingMva = Infinity;
+    let voltage = null;
+    let srcName = null;
+    let source = null;
+    let srcBreaker = null;
+    let circuitId = null;
+    const uniqueFeatures = [];
+
+    for (const f of feats) {
+      const p = f.properties;
+      if (p.mat_unified) materials.add(p.mat_unified);
+      if (p.underground_or_overhead) types.add(p.underground_or_overhead);
+      totalLength += p.length_m || 0;
+      if (p.rating_amps != null) minRating = Math.min(minRating, p.rating_amps);
+      if (p.rating_mva != null) minRatingMva = Math.min(minRatingMva, p.rating_mva);
+      if (p.voltage_kv) voltage = p.voltage_kv;
+      if (p.srcName) srcName = p.srcName;
+      if (p.source) source = p.source;
+      if (p.srcBreaker) srcBreaker = p.srcBreaker;
+      if (p.circuit_id) circuitId = p.circuit_id;
+
+      // Unique feature: this segment belongs exclusively to this branch
+      const featureBranchIds = (p.branch_ids || '').split('|').filter(Boolean);
+      if (featureBranchIds.length === 1 && featureBranchIds[0] === id) {
+        uniqueFeatures.push(f);
+      }
+    }
+
+    branch.stats = {
+      segmentCount: feats.length,
+      totalLength: Math.round(totalLength),
+      voltage,
+      srcName,
+      source,
+      srcBreaker,
+      circuitId,
+      materials: [...materials],
+      types: [...types],
+      branchRating: minRating === Infinity ? null : minRating,
+      branchRatingMva: minRatingMva === Infinity ? null : minRatingMva,
+      uniqueFeatures,
+    };
+  }
+  return index;
+}
+
+// ---------------------------------------------------------------------------
+// Voltage legend with toggle checkboxes
+// ---------------------------------------------------------------------------
+function renderVoltageLegend() {
+  const container = document.getElementById('voltage-legend-list');
+  const html = [...VOLTAGE_ORDER].reverse().map(v => {
+    const color = getVoltageColor(v);
+    const threshold = VOLTAGE_MVA_THRESHOLDS[v] || 0;
+    const badgeHtml = threshold > 0
+      ? `<span class="legend-mva-badge">&ge;${threshold} MVA</span>`
+      : '';
+    const dimmed = !isVoltageVisible(v) ? ' dimmed' : '';
+    return `
+      <label class="legend-item${dimmed}" data-voltage="${v}">
+        <input type="checkbox" ${hiddenVoltages.has(v) ? '' : 'checked'}
+               onchange="toggleVoltage(${v})" />
+        <span class="legend-line" style="border-top: 3px solid ${color};"></span>
+        <span class="legend-label">${v}kV</span>
+        ${badgeHtml}
+      </label>
+    `;
+  }).join('');
+  container.innerHTML = html;
+}
+
+// ---------------------------------------------------------------------------
+// Cable tooltip
+// ---------------------------------------------------------------------------
+function cableTooltip(feature) {
+  const p = feature.properties;
+  const typeStr = p.underground_or_overhead === 'underground' ? 'UG' : 'OH';
+  const ampsStr = p.rating_amps != null ? `${p.rating_amps.toFixed(0)}A` : null;
+  const mvaStr = p.rating_mva != null ? `${p.rating_mva.toFixed(1)} MVA` : null;
+  const ratingStr = ampsStr || mvaStr ? [ampsStr, mvaStr].filter(Boolean).join(' / ') : 'Rating unknown';
+  const lengthStr = p.length_m != null ? `${p.length_m.toFixed(0)}m` : '?';
+  return `<b>${p.mat_unified || 'Unknown material'}</b><br>`
+    + `${ratingStr} · ${typeStr} · ${lengthStr}`;
+}
+
+// ---------------------------------------------------------------------------
+// Refresh map layer styles
+// ---------------------------------------------------------------------------
+function refreshMap() {
+  if (cablesLayer) cablesLayer.setStyle(cableStyle);
+  if (casingLayer) casingLayer.setStyle(casingStyle);
+}
+
+// ---------------------------------------------------------------------------
+// Voltage toggle
+// ---------------------------------------------------------------------------
+function toggleVoltage(voltage) {
+  if (hiddenVoltages.has(voltage)) {
+    hiddenVoltages.delete(voltage);
+  } else {
+    hiddenVoltages.add(voltage);
+  }
+  renderVoltageLegend();
+  refreshMap();
+  runSearch();
+}
+
+// ---------------------------------------------------------------------------
+// MVA dual-range slider (logarithmic scale)
+// ---------------------------------------------------------------------------
+// The HTML range inputs use a linear 0–1000 scale. We map to/from MVA
+// values using a log scale so that low values (1–10 MVA) get much more
+// slider travel than high values (100–200+ MVA).
+const SLIDER_STEPS = 1000;
+
+function mvaToSlider(mva) {
+  if (mva <= mvaSliderMin) return 0;
+  if (mva >= mvaSliderMax) return SLIDER_STEPS;
+  const logMin = Math.log(Math.max(mvaSliderMin, 0.1));
+  const logMax = Math.log(mvaSliderMax);
+  return Math.round(((Math.log(mva) - logMin) / (logMax - logMin)) * SLIDER_STEPS);
+}
+
+function sliderToMva(pos) {
+  const logMin = Math.log(Math.max(mvaSliderMin, 0.1));
+  const logMax = Math.log(mvaSliderMax);
+  const mva = Math.exp(logMin + (pos / SLIDER_STEPS) * (logMax - logMin));
+  // Round to 1dp for display, but clamp to bounds
+  return Math.max(mvaSliderMin, Math.min(mvaSliderMax, Math.round(mva * 10) / 10));
+}
+
+function initSlider() {
+  const minSlider = document.getElementById('mva-min-slider');
+  const maxSlider = document.getElementById('mva-max-slider');
+  const minLabel = document.getElementById('slider-min-label');
+  const maxLabel = document.getElementById('slider-max-label');
+  const fill = document.getElementById('slider-fill');
+
+  minSlider.min = 0;
+  minSlider.max = SLIDER_STEPS;
+  minSlider.step = 1;
+  minSlider.value = mvaToSlider(mvaMin);
+
+  maxSlider.min = 0;
+  maxSlider.max = SLIDER_STEPS;
+  maxSlider.step = 1;
+  maxSlider.value = mvaToSlider(mvaMax);
+
+  function updateFill() {
+    const leftPct = (parseFloat(minSlider.value) / SLIDER_STEPS) * 100;
+    const rightPct = (parseFloat(maxSlider.value) / SLIDER_STEPS) * 100;
+    fill.style.left = leftPct + '%';
+    fill.style.width = (rightPct - leftPct) + '%';
+  }
+
+  // Debounce expensive map/search updates — labels and fill update instantly
+  const spinner = document.getElementById('map-spinner');
+  let sliderTimer = null;
+  let sliderRaf = null;
+  function debouncedUpdate() {
+    spinner.classList.add('visible');
+    clearTimeout(sliderTimer);
+    if (sliderRaf) cancelAnimationFrame(sliderRaf);
+    sliderTimer = setTimeout(() => {
+      // Double-rAF ensures spinner paints before the expensive work
+      sliderRaf = requestAnimationFrame(() => {
+        sliderRaf = requestAnimationFrame(() => {
+          sliderRaf = null;
+          refreshMap();
+          if (siteLatlng) runSearch();
+          spinner.classList.remove('visible');
+        });
+      });
+    }, 150);
+  }
+
+  minSlider.addEventListener('input', () => {
+    const sliderVal = parseFloat(minSlider.value);
+    mvaMin = sliderToMva(sliderVal);
+    if (mvaMin > mvaMax) { mvaMin = mvaMax; minSlider.value = mvaToSlider(mvaMin); }
+    minLabel.textContent = mvaMin.toFixed(1);
+    updateFill();
+    debouncedUpdate();
+  });
+
+  maxSlider.addEventListener('input', () => {
+    const sliderVal = parseFloat(maxSlider.value);
+    mvaMax = sliderToMva(sliderVal);
+    if (mvaMax < mvaMin) { mvaMax = mvaMin; maxSlider.value = mvaToSlider(mvaMax); }
+    maxLabel.textContent = mvaMax.toFixed(1);
+    updateFill();
+
+    // Dim voltage legend items (cheap — just opacity on a few elements)
+    for (const v of VOLTAGE_ORDER) {
+      const threshold = VOLTAGE_MVA_THRESHOLDS[v] || 0;
+      const items = document.querySelectorAll(`[data-voltage="${v}"]`);
+      const shouldDim = threshold > 0 && mvaMax < threshold;
+      items.forEach(item => {
+        item.style.opacity = shouldDim ? '0.35' : '1';
+      });
+    }
+
+    debouncedUpdate();
+  });
+
+  minLabel.textContent = mvaMin.toFixed(1);
+  maxLabel.textContent = mvaMax.toFixed(1);
+  updateFill();
+}
+
+// ---------------------------------------------------------------------------
+// Connection layer management
+// ---------------------------------------------------------------------------
+function clearConnectionLayer() {
+  if (connectionLayer) {
+    map.removeLayer(connectionLayer);
+    connectionLayer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Draw dashed connection lines and dots for search results
+// ---------------------------------------------------------------------------
+function drawConnections(results) {
+  clearConnectionLayer();
+
+  const layers = [];
+  for (const result of results) {
+    const { branchId, connectionPoint, stats } = result;
+
+    // When a branch is selected, only show that branch's connection
+    if (selectedBranchId && selectedBranchId !== branchId) continue;
+
+    const color = getVoltageColor(stats.voltage);
+    const cp = connectionPoint.geometry.coordinates; // [lng, lat]
+    const from = [siteLatlng.lat, siteLatlng.lng];
+    const to = [cp[1], cp[0]];
+
+    const line = L.polyline([from, to], {
+      color,
+      weight: 4,
+      dashArray: '6,4',
+      opacity: selectedBranchId ? 0.9 : 0.7,
+    });
+    line.on('click', (e) => { L.DomEvent.stopPropagation(e); selectBranch(branchId); });
+
+    const dot = L.circleMarker(to, {
+      radius: 6,
+      fillColor: color,
+      fillOpacity: 1,
+      color: '#ffffff',
+      weight: 1.5,
+      opacity: selectedBranchId ? 1 : 0.9,
+    });
+    dot.on('click', (e) => { L.DomEvent.stopPropagation(e); selectBranch(branchId); });
+
+    layers.push(line, dot);
+  }
+
+  connectionLayer = L.layerGroup(layers).addTo(map);
+  if (siteMarker) siteMarker.bringToFront();
+}
+
+// ---------------------------------------------------------------------------
+// Results panel: voltage group expand/collapse
+// ---------------------------------------------------------------------------
+function toggleVoltageGroup(voltage) {
+  if (expandedVoltages.has(voltage)) {
+    expandedVoltages.delete(voltage);
+  } else {
+    expandedVoltages.add(voltage);
+  }
+  renderResults(searchResults);
+}
+
+function toggleSubstationGroup(key) {
+  if (expandedSubstations.has(key)) {
+    expandedSubstations.delete(key);
+  } else {
+    expandedSubstations.add(key);
+  }
+  renderResults(searchResults);
+}
+
+function toggleCircuitGroup(key) {
+  if (expandedCircuits.has(key)) {
+    expandedCircuits.delete(key);
+  } else {
+    expandedCircuits.add(key);
+  }
+  renderResults(searchResults);
+}
+
+// ---------------------------------------------------------------------------
+// Branch card HTML helper
+// ---------------------------------------------------------------------------
+function renderBranchCard(r, optNum) {
+  const { branchId, distance, stats } = r;
+  const isSelected = selectedBranchId === branchId;
+  const cardClass = isSelected ? 'branch-card selected' : 'branch-card';
+
+  const mvaStr = stats.branchRatingMva != null
+    ? `${stats.branchRatingMva.toFixed(1)} MVA`
+    : '? MVA';
+
+  const distStr = distance >= 1
+    ? `${distance.toFixed(1)}km`
+    : `${Math.round(distance * 1000)}m`;
+  const lengthStr = stats.totalLength >= 1000
+    ? `${(stats.totalLength / 1000).toFixed(1)}km`
+    : `${stats.totalLength}m`;
+  const typeStr = stats.types.includes('underground') && stats.types.includes('overhead')
+    ? 'UG+OH'
+    : stats.types.includes('underground') ? 'UG' : stats.types.includes('overhead') ? 'OH' : '?';
+
+  let html = `<div class="${cardClass}" data-branch-id="${branchId}">`;
+  html += `<div class="branch-card-label">Connection option ${optNum}</div>`;
+  html += `<div class="branch-card-header">`;
+  html += `<div class="branch-card-meta">${distStr} \u00B7 ${lengthStr} \u00B7 ${typeStr}</div>`;
+  html += `<div class="branch-card-badge">${mvaStr}</div>`;
+  html += `</div>`;
+  html += `</div>`;
+  return html;
+}
+
+// ---------------------------------------------------------------------------
+// Results panel renderer
+// ---------------------------------------------------------------------------
+function renderResults(results) {
+  const panel = document.getElementById('right-panel');
+  const container = document.getElementById('results-container');
+  const subhead = document.getElementById('results-subhead');
+
+  panel.style.display = 'flex';
+
+  if (!results || results.length === 0) {
+    subhead.textContent = 'No connections within 1km';
+    container.innerHTML = '<div class="no-results">No branches found within 1km</div>';
+    return;
+  }
+
+  subhead.textContent = `${results.length} branch${results.length !== 1 ? 'es' : ''} within 1km`;
+
+  // Group by voltage
+  const groups = {};
+  for (const r of results) {
+    const v = r.stats.voltage;
+    if (!groups[v]) groups[v] = [];
+    groups[v].push(r);
+  }
+
+  // Sort voltages in ascending order (only voltages present)
+  const voltagesPresent = VOLTAGE_ORDER.filter(v => groups[v]);
+
+  // On first search, expand voltages + substations + circuits
+  const isFirstRender = expandAllOnNextRender;
+  if (expandAllOnNextRender) {
+    expandAllOnNextRender = false;
+    expandedSubstations.clear();
+    expandedCircuits.clear();
+    for (const v of voltagesPresent) expandedVoltages.add(v);
+    // Pre-expand all substations and circuits within each voltage
+    for (const v of voltagesPresent) {
+      for (const r of groups[v]) {
+        const src = r.stats.source || '_none';
+        const cid = r.stats.circuitId || '_none';
+        expandedSubstations.add(`${v}_${src}`);
+        expandedCircuits.add(`${v}_${src}_${cid}`);
+      }
+    }
+  }
+
+  const fmtDist = d => d >= 1 ? `${d.toFixed(1)}km` : `${Math.round(d * 1000)}m`;
+  function fmtMvaRange(values) {
+    if (values.length === 0) return null;
+    const min = Math.min(...values), max = Math.max(...values);
+    return min === max ? `${min.toFixed(1)} MVA` : `${min.toFixed(1)}\u2013${max.toFixed(1)} MVA`;
+  }
+  function fmtDistRange(distances) {
+    const min = Math.min(...distances), max = Math.max(...distances);
+    return fmtDist(min) === fmtDist(max) ? fmtDist(min) : `${fmtDist(min)}\u2013${fmtDist(max)}`;
+  }
+
+  let html = '';
+  for (const voltage of voltagesPresent) {
+    const branches = groups[voltage];
+    const isExpanded = expandedVoltages.has(voltage);
+    const arrow = isExpanded ? '\u25BC' : '\u25B6';
+    const color = getVoltageColor(voltage);
+
+    // Voltage-level summary — order: substations, circuits, points
+    const subCount = new Set(branches.map(r => r.stats.source).filter(Boolean)).size;
+    const circuitCount = new Set(branches.map(r => r.stats.circuitId).filter(Boolean)).size;
+    const mvaValues = branches.map(r => r.stats.branchRatingMva).filter(v => v != null);
+    const distances = branches.map(r => r.distance);
+
+    const summaryParts = [
+      subCount > 0 ? `${subCount} substation${subCount !== 1 ? 's' : ''}` : null,
+      circuitCount > 0 ? `${circuitCount} circuit${circuitCount !== 1 ? 's' : ''}` : null,
+      `${branches.length} option${branches.length !== 1 ? 's' : ''}`,
+    ].filter(Boolean);
+    const groupRanges = [fmtMvaRange(mvaValues), fmtDistRange(distances)].filter(Boolean).join(' \u00B7 ');
+
+    html += `<div class="voltage-group">`;
+    html += `<div class="voltage-group-header" data-toggle-voltage="${voltage}">`;
+    html += `<span class="voltage-group-chevron">${arrow}</span>`;
+    html += `<span class="voltage-group-dot" style="background:${color};"></span>`;
+    html += `<span class="voltage-group-label">Voltage: ${voltage}kV</span>`;
+    html += `<span class="voltage-group-count">${summaryParts.join(' \u00B7 ')}</span>`;
+    if (groupRanges) {
+      html += `<div class="voltage-group-ranges">${groupRanges}</div>`;
+    }
+    html += `</div>`;
+
+    // Group by substation (source) within this voltage
+    const subGroups = {};
+    for (const r of branches) {
+      const src = r.stats.source || '_none';
+      if (!subGroups[src]) subGroups[src] = [];
+      subGroups[src].push(r);
+    }
+
+    // Sort substations by best MVA descending
+    const sortedSubs = Object.keys(subGroups).sort((a, b) => {
+      const maxA = Math.max(...subGroups[a].map(r => r.stats.branchRatingMva || 0));
+      const maxB = Math.max(...subGroups[b].map(r => r.stats.branchRatingMva || 0));
+      return maxB - maxA;
+    });
+
+    const vChildClass = isExpanded ? 'voltage-group-branches open' : 'voltage-group-branches';
+    html += `<div class="${vChildClass}">`;
+
+    let subNum = 0;
+    for (const src of sortedSubs) {
+      subNum++;
+      const subBranches = subGroups[src];
+      const subKey = `${voltage}_${src}`;
+
+      const subExpanded = expandedSubstations.has(subKey);
+      const sArrow = subExpanded ? '\u25BC' : '\u25B6';
+      const subName = subBranches[0].stats.srcName || src;
+      const sMvaValues = subBranches.map(r => r.stats.branchRatingMva).filter(v => v != null);
+      const sCircuitCount = new Set(subBranches.map(r => r.stats.circuitId).filter(Boolean)).size;
+
+      const sSummaryParts = [
+        sCircuitCount > 0 ? `${sCircuitCount} circuit${sCircuitCount !== 1 ? 's' : ''}` : null,
+        `${subBranches.length} option${subBranches.length !== 1 ? 's' : ''}`,
+        fmtMvaRange(sMvaValues),
+      ].filter(Boolean);
+
+      html += `<div class="sub-group">`;
+      html += `<div class="sub-group-header" data-toggle-sub="${subKey}">`;
+      html += `<span class="sub-group-chevron">${sArrow}</span>`;
+      html += `<span class="sub-group-label">Substation:</span>`;
+      html += `<span class="sub-group-id">${src}</span>`;
+      html += `<div class="sub-group-name" title="${subName}">${subName}</div>`;
+      html += `<div class="sub-group-summary">${sSummaryParts.join(' \u00B7 ')}</div>`;
+      html += `</div>`;
+
+      // Group by circuit within this substation
+      const circuitGroups = {};
+      for (const r of subBranches) {
+        const cid = r.stats.circuitId || '_none';
+        if (!circuitGroups[cid]) circuitGroups[cid] = [];
+        circuitGroups[cid].push(r);
+      }
+
+      const sortedCircuits = Object.keys(circuitGroups).sort((a, b) => {
+        const maxA = Math.max(...circuitGroups[a].map(r => r.stats.branchRatingMva || 0));
+        const maxB = Math.max(...circuitGroups[b].map(r => r.stats.branchRatingMva || 0));
+        return maxB - maxA;
+      });
+
+      const sChildClass = subExpanded ? 'sub-group-children open' : 'sub-group-children';
+      html += `<div class="${sChildClass}">`;
+
+      let circuitNum = 0;
+      for (const cid of sortedCircuits) {
+        circuitNum++;
+        const circuitBranches = circuitGroups[cid].sort((a, b) => a.distance - b.distance);
+        const circuitKey = `${voltage}_${src}_${cid}`;
+        const circuitExpanded = expandedCircuits.has(circuitKey);
+
+        const cArrow = circuitExpanded ? '\u25BC' : '\u25B6';
+        const cMvaValues = circuitBranches.map(r => r.stats.branchRatingMva).filter(v => v != null);
+        const cSummaryParts = [
+          `${circuitBranches.length} option${circuitBranches.length !== 1 ? 's' : ''}`,
+          fmtMvaRange(cMvaValues),
+          fmtDist(Math.min(...circuitBranches.map(r => r.distance))) + ' nearest',
+        ].filter(Boolean);
+
+        html += `<div class="circuit-group">`;
+        html += `<div class="circuit-group-header" data-toggle-circuit="${circuitKey}">`;
+        html += `<span class="circuit-group-chevron">${cArrow}</span>`;
+        html += `<span class="circuit-group-label">Circuit ${circuitNum}:</span>`;
+        html += `<span class="circuit-group-name">${cid}</span>`;
+        html += `<div class="circuit-group-summary">${cSummaryParts.join(' \u00B7 ')}</div>`;
+        html += `</div>`;
+
+        const cChildClass = circuitExpanded ? 'circuit-group-branches open' : 'circuit-group-branches';
+        html += `<div class="${cChildClass}">`;
+        let optNum = 0;
+        for (const r of circuitBranches) {
+          optNum++;
+          html += renderBranchCard(r, optNum);
+        }
+        html += `</div></div>`; // circuit-group-branches, circuit-group
+      }
+
+      html += `</div></div>`; // sub-group-children, sub-group
+    }
+
+    html += `</div>`; // voltage-group-branches
+    html += `</div>`; // voltage-group
+  }
+
+  container.innerHTML = html;
+
+  // Scroll selected card into view
+  if (selectedBranchId) {
+    const selectedCard = container.querySelector(`[data-branch-id="${selectedBranchId}"]`);
+    if (selectedCard) selectedCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Branch card click delegation
+// ---------------------------------------------------------------------------
+document.getElementById('results-container').addEventListener('click', (e) => {
+  // Voltage group expand/collapse
+  const vHeader = e.target.closest('.voltage-group-header');
+  if (vHeader && vHeader.dataset.toggleVoltage) {
+    toggleVoltageGroup(parseFloat(vHeader.dataset.toggleVoltage));
+    return;
+  }
+  // Substation group expand/collapse
+  const sHeader = e.target.closest('.sub-group-header');
+  if (sHeader && sHeader.dataset.toggleSub) {
+    toggleSubstationGroup(sHeader.dataset.toggleSub);
+    return;
+  }
+  // Circuit group expand/collapse
+  const cHeader = e.target.closest('.circuit-group-header');
+  if (cHeader && cHeader.dataset.toggleCircuit) {
+    toggleCircuitGroup(cHeader.dataset.toggleCircuit);
+    return;
+  }
+  // Branch card selection
+  const card = e.target.closest('.branch-card');
+  if (card && card.dataset.branchId) {
+    selectBranch(card.dataset.branchId);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Branch selection
+// ---------------------------------------------------------------------------
+function selectBranch(branchId) {
+  clearHighlight();
+  removeSegmentHoverLayer();
+
+  if (selectedBranchId === branchId) {
+    selectedBranchId = null;
+    refreshMap();
+    drawConnections(searchResults);
+    renderResults(searchResults);
+    return;
+  }
+
+  selectedBranchId = branchId;
+
+  // Ensure the selected branch's voltage, substation, and circuit groups are expanded
+  const branch = branchIndex[branchId];
+  if (branch) {
+    const v = branch.stats.voltage;
+    const src = branch.stats.source || '_none';
+    const cid = branch.stats.circuitId || '_none';
+    expandedVoltages.add(v);
+    expandedSubstations.add(`${v}_${src}`);
+    expandedCircuits.add(`${v}_${src}_${cid}`);
+  }
+
+  refreshMap();
+  drawConnections(searchResults);
+  renderResults(searchResults);
+  addSegmentHoverLayer(branchId);
+}
+
+// ---------------------------------------------------------------------------
+// Highlight layer: cable segment hover highlight
+// ---------------------------------------------------------------------------
+function clearHighlight() {
+  if (highlightLayer) {
+    map.removeLayer(highlightLayer);
+    highlightLayer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Segment tooltip content
+// ---------------------------------------------------------------------------
+function segmentTooltip(props) {
+  const material = props.mat_unified || 'Unknown material';
+  const typeStr = props.underground_or_overhead === 'underground' ? 'UG' : 'OH';
+  const ampsStr = props.rating_amps != null ? `${props.rating_amps.toFixed(0)}A` : null;
+  const mvaStr = props.rating_mva != null ? `${props.rating_mva.toFixed(1)} MVA` : null;
+  const ratingStr = ampsStr || mvaStr ? [ampsStr, mvaStr].filter(Boolean).join(' / ') : 'Rating unknown';
+  const lengthStr = props.length_m != null ? `${props.length_m.toFixed(0)}m` : null;
+
+  const conductorParts = [
+    props.conductor || null,
+    props.mm2 != null ? `${props.mm2}mm\u00B2` : null,
+    props.insulation || null,
+  ].filter(Boolean);
+
+  const line3Parts = [ratingStr, typeStr, lengthStr].filter(Boolean);
+
+  let tooltip = `<b>${material}</b>`;
+  if (conductorParts.length > 0) {
+    tooltip += `<br>${conductorParts.join(' \u00B7 ')}`;
+  }
+  if (line3Parts.length > 0) {
+    tooltip += `<br>${line3Parts.join(' \u00B7 ')}`;
+  }
+  if (props.armouring) {
+    tooltip += `<br>Armouring: ${props.armouring}`;
+  }
+
+  return tooltip;
+}
+
+// ---------------------------------------------------------------------------
+// Segment hover layer: fat invisible hitbox over selected branch segments
+// ---------------------------------------------------------------------------
+function addSegmentHoverLayer(branchId) {
+  const branch = branchIndex[branchId];
+  if (!branch) return;
+
+  // Sort features by branch_orders for this branchId
+  const featuresWithOrder = branch.features.map(f => {
+    const p = f.properties;
+    const branchIds = p.branch_ids ? p.branch_ids.split('|') : [];
+    const branchOrders = p.branch_orders ? p.branch_orders.split('|') : [];
+    const idx = branchIds.indexOf(branchId);
+    const sortIndex = idx >= 0 && branchOrders[idx] != null ? parseInt(branchOrders[idx], 10) : 9999;
+    return { ...f, _sortIndex: sortIndex };
+  });
+  featuresWithOrder.sort((a, b) => a._sortIndex - b._sortIndex);
+
+  segmentHoverLayer = L.geoJSON(
+    { type: 'FeatureCollection', features: featuresWithOrder },
+    {
+      style: () => ({ weight: 14, opacity: 0, fill: false }),
+      onEachFeature: (feature, layer) => {
+        layer.on('mouseover', () => {
+          clearHighlight();
+          highlightLayer = L.geoJSON(feature, {
+            style: { color: '#ffeb3b', weight: 6, opacity: 1 },
+          }).addTo(map);
+        });
+        layer.on('mouseout', () => {
+          clearHighlight();
+        });
+        layer.bindTooltip(() => segmentTooltip(feature.properties), {
+          sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95,
+        });
+      },
+    }
+  ).addTo(map);
+}
+
+// ---------------------------------------------------------------------------
+// Remove segment hover layer
+// ---------------------------------------------------------------------------
+function removeSegmentHoverLayer() {
+  if (segmentHoverLayer) {
+    map.removeLayer(segmentHoverLayer);
+    segmentHoverLayer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Site placement: map click handler
+// ---------------------------------------------------------------------------
+map.on('click', (e) => {
+  // If results are showing, don't allow a new search — user must clear first
+  if (siteLatlng) return;
+
+  siteLatlng = e.latlng;
+  siteMarker = L.circleMarker(siteLatlng, {
+    radius: 8,
+    fillColor: '#000000',
+    fillOpacity: 1,
+    color: '#ffffff',
+    weight: 2,
+  }).addTo(map);
+
+  selectedBranchId = null;
+  expandedVoltages.clear();
+  expandedSubstations.clear();
+  expandedCircuits.clear();
+  expandAllOnNextRender = true;
+
+  // Show spinner — double-rAF ensures it paints before the expensive work
+  const spinner = document.getElementById('map-spinner');
+  spinner.classList.add('visible');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      runSearch();
+      updateHash();
+      spinner.classList.remove('visible');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Clear site
+// ---------------------------------------------------------------------------
+function clearSite() {
+  if (siteMarker) {
+    map.removeLayer(siteMarker);
+    siteMarker = null;
+  }
+  siteLatlng = null;
+  selectedBranchId = null;
+  searchResults = [];
+  clearConnectionLayer();
+  clearHighlight();
+  removeSegmentHoverLayer();
+  document.getElementById('right-panel').style.display = 'none';
+  document.querySelector('.panel-subtitle').textContent = 'Click map to place a site';
+  updateHash();
+}
+
+document.getElementById('results-close').addEventListener('click', clearSite);
+
+// ---------------------------------------------------------------------------
+// Connection point search
+// ---------------------------------------------------------------------------
+function runSearch() {
+  if (!siteLatlng) return;
+
+  clearConnectionLayer();
+  if (highlightLayer) { map.removeLayer(highlightLayer); highlightLayer = null; }
+  if (segmentHoverLayer) { map.removeLayer(segmentHoverLayer); segmentHoverLayer = null; }
+  selectedBranchId = null;
+
+  const clickPoint = turf.point([siteLatlng.lng, siteLatlng.lat]);
+
+  // Group eligible branches by circuit; standalone branches in separate array
+  const circuitBranches = {};
+  const standaloneBranches = [];
+
+  for (const [branchId, branch] of Object.entries(branchIndex)) {
+    const s = branch.stats;
+    if (!isVoltageVisible(s.voltage)) continue;
+    if (s.branchRatingMva != null && s.branchRatingMva < mvaMin) continue;
+
+    if (s.circuitId) {
+      if (!circuitBranches[s.circuitId]) circuitBranches[s.circuitId] = [];
+      circuitBranches[s.circuitId].push({ branchId, branch });
+    } else {
+      standaloneBranches.push({ branchId, branch });
+    }
+  }
+
+  const claimedSegments = new Set();
+  const results = [];
+
+  function tryBranch(branchId, branch) {
+    const s = branch.stats;
+    let bestDist = Infinity;
+    let bestPoint = null;
+    let bestFeature = null;
+
+    // 1. Try preferred (unique) segments first
+    for (const feature of s.uniqueFeatures) {
+      try {
+        const nearest = turf.nearestPointOnLine(feature, clickPoint, { units: 'kilometers' });
+        const d = nearest.properties.dist;
+        if (d < bestDist) {
+          bestDist = d;
+          bestPoint = nearest;
+          bestFeature = feature;
+        }
+      } catch (_) { /* degenerate geometry */ }
+    }
+
+    // 2. Fall back to any unclaimed segment
+    if (!bestPoint) {
+      for (const feature of branch.features) {
+        if (claimedSegments.has(feature)) continue;
+        try {
+          const nearest = turf.nearestPointOnLine(feature, clickPoint, { units: 'kilometers' });
+          const d = nearest.properties.dist;
+          if (d < bestDist) {
+            bestDist = d;
+            bestPoint = nearest;
+            bestFeature = feature;
+          }
+        } catch (_) { /* degenerate geometry */ }
+      }
+    }
+
+    // 3. Last resort: any segment, even if claimed
+    if (!bestPoint) {
+      for (const feature of branch.features) {
+        try {
+          const nearest = turf.nearestPointOnLine(feature, clickPoint, { units: 'kilometers' });
+          const d = nearest.properties.dist;
+          if (d < bestDist) {
+            bestDist = d;
+            bestPoint = nearest;
+            bestFeature = feature;
+          }
+        } catch (_) { /* degenerate geometry */ }
+      }
+    }
+
+    if (bestPoint && bestDist <= SEARCH_RADIUS_KM) {
+      if (bestFeature) claimedSegments.add(bestFeature);
+      results.push({
+        branchId,
+        distance: bestDist,
+        connectionPoint: bestPoint,
+        stats: s,
+      });
+    }
+  }
+
+  // Process circuit branches
+  for (const branches of Object.values(circuitBranches)) {
+    for (const { branchId, branch } of branches) {
+      tryBranch(branchId, branch);
+    }
+  }
+
+  // Process standalone branches
+  for (const { branchId, branch } of standaloneBranches) {
+    tryBranch(branchId, branch);
+  }
+
+  results.sort((a, b) => a.distance - b.distance);
+  searchResults = results;
+
+  drawConnections(results);
+  renderResults(results);
+
+  document.querySelector('.panel-subtitle').textContent =
+    results.length > 0
+      ? `${results.length} connection${results.length !== 1 ? 's' : ''} found`
+      : 'No connections within 1km';
+}
+
+// ---------------------------------------------------------------------------
+// Load data and initialise
+// ---------------------------------------------------------------------------
+async function init() {
+  try {
+    const [circuitsRes, subsRes, txRes] = await Promise.all([
+      fetch('circuits.geojson'),
+      fetch('substations.geojson'),
+      fetch('transformers.geojson'),
+    ]);
+
+    if (!circuitsRes.ok) throw new Error(`circuits.geojson: ${circuitsRes.status}`);
+    if (!subsRes.ok) throw new Error(`substations.geojson: ${subsRes.status}`);
+    if (!txRes.ok) throw new Error(`transformers.geojson: ${txRes.status}`);
+
+    const circuitsData = await circuitsRes.json();
+    const subsData = await subsRes.json();
+    const txData = await txRes.json();
+
+    branchIndex = buildBranchIndex(circuitsData);
+
+    // Derive MVA slider range from branch data
+    let minMva = Infinity;
+    let maxMva = -Infinity;
+    for (const branch of Object.values(branchIndex)) {
+      const mva = branch.stats.branchRatingMva;
+      if (mva != null) {
+        if (mva < minMva) minMva = mva;
+        if (mva > maxMva) maxMva = mva;
+      }
+    }
+    if (minMva !== Infinity) {
+      mvaSliderMin = Math.floor(minMva);
+      mvaSliderMax = Math.ceil(maxMva);
+      mvaMin = mvaSliderMin;
+      mvaMax = mvaSliderMax;
+    }
+
+    initSlider();
+
+    const branchCount = Object.keys(branchIndex).length;
+    const segmentCount = circuitsData.features.length;
+    console.log(`Loaded ${segmentCount} segments in ${branchCount} branches, ${subsData.features.length} substations, ${txData.features.length} transformers`);
+
+    // Substations layer
+    substationsLayer = L.geoJSON(subsData, {
+      style: substationStyle,
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties;
+        layer.bindPopup(
+          `<strong>${p.siteName || 'Unknown'}</strong><br>`
+          + `Type: ${p.type || '?'}<br>`
+          + `Voltage: ${p.voltage_kv ? p.voltage_kv + 'kV' : '?'}<br>`
+          + `Site No: ${p.siteNo}`
+        );
+      },
+    }).addTo(map);
+
+    // Casing layer (underground only, non-interactive)
+    casingLayer = L.geoJSON(circuitsData, {
+      style: casingStyle,
+      filter: f => f.properties.underground_or_overhead === 'underground',
+      interactive: false,
+    }).addTo(map);
+
+    // Cables layer with tooltips
+    cablesLayer = L.geoJSON(circuitsData, {
+      style: cableStyle,
+      onEachFeature: (feature, layer) => {
+        layer.bindTooltip(() => cableTooltip(feature), {
+          sticky: true, direction: 'top', offset: [0, -8], opacity: 0.95,
+        });
+      },
+    }).addTo(map);
+
+    // Transformers layer (zoom-responsive circle markers)
+    function txRadius(isPole, zoom) {
+      const scale = Math.max(0.3, (zoom - 11) / 5);
+      return (isPole ? 6 : 9) * scale;
+    }
+
+    function updateTxSizes() {
+      const zoom = map.getZoom();
+      transformersLayer.eachLayer(layer => {
+        const isPole = layer.feature.properties.mounting === 'Pole Mounted';
+        layer.setRadius(txRadius(isPole, zoom));
+      });
+    }
+
+    transformersLayer = L.geoJSON(txData, {
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties;
+        const isPole = p.mounting === 'Pole Mounted';
+        return L.circleMarker(latlng, {
+          radius: txRadius(isPole, map.getZoom()),
+          fillColor: isPole ? '#e67e22' : '#8e44ad',
+          fillOpacity: 0.8,
+          color: '#fff',
+          weight: 2,
+          opacity: 0.9,
+        });
+      },
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties;
+        layer.bindPopup(
+          `<strong>${p.siteName || 'Unknown'}</strong><br>`
+          + `Transformer (${p.mounting || '?'})<br>`
+          + `Voltage: ${p.voltage_kv ? p.voltage_kv + 'kV' : '?'}<br>`
+          + `Site No: ${p.siteNo}`
+        );
+      },
+    }).addTo(map);
+    map.on('zoomend', updateTxSizes);
+    map.on('moveend', updateHash);
+
+    renderVoltageLegend();
+
+    // Restore site from URL hash
+    if (initialView && initialView.siteLat != null) {
+      siteLatlng = L.latLng(initialView.siteLat, initialView.siteLng);
+      siteMarker = L.circleMarker(siteLatlng, {
+        radius: 8,
+        fillColor: '#000000',
+        fillOpacity: 1,
+        color: '#ffffff',
+        weight: 2,
+      }).addTo(map);
+      runSearch();
+    }
+
+    document.getElementById('loading').style.display = 'none';
+
+  } catch (err) {
+    document.getElementById('loading').textContent = `Error: ${err.message}`;
+    console.error(err);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
