@@ -1,286 +1,349 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yottar Labs — Prototypes & Experiments</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --black: #0f1112;
-    --dark-beige: #c9c9c4;
-    --beige: #f6f6f5;
-    --light-blue: #d3e0e5;
-    --mid-grey: #666d70;
-    --dark-grey: #2a2f31;
-    --black-shadow: #0f111214;
-    --mid-blue: #bad2d8;
-  }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yottar Labs — Prototypes & Experiments</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --black: #0f1112;
+        --dark-beige: #c9c9c4;
+        --beige: #f6f6f5;
+        --light-blue: #d3e0e5;
+        --mid-grey: #666d70;
+        --dark-grey: #2a2f31;
+        --black-shadow: #0f111214;
+        --mid-blue: #bad2d8;
+      }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Inter', sans-serif;
-    color: var(--black);
-    background-image: linear-gradient(180deg, var(--beige), var(--light-blue));
-    min-height: 100vh;
-  }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        color: var(--black);
+        background-image: linear-gradient(
+          180deg,
+          var(--beige),
+          var(--light-blue)
+        );
+        min-height: 100vh;
+      }
 
-  .navbar-logo-left {
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    background-color: #f6f6f5cc;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .navbar-logo-left-container {
-    z-index: 5;
-    background-color: transparent;
-    width: 100%;
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    padding: 20px 20px;
-  }
-  .navbar-wrapper {
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1220px;
-    margin: 0 auto;
-    display: flex;
-  }
-  .navbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    text-decoration: none;
-    padding-left: 0;
-  }
-  .navbar-logo { width: 86px; }
-  .nav-labs-divider {
-    width: 1px;
-    height: 22px;
-    background: var(--dark-beige);
-  }
-  .nav-labs-badge {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: linear-gradient(135deg, #7c3aed, #a855f7, #6366f1, #a855f7, #7c3aed);
-    background-size: 300% 100%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: shimmer 4s ease-in-out infinite;
-  }
-  @keyframes shimmer {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+      .navbar-logo-left {
+        -webkit-backdrop-filter: blur(6px);
+        backdrop-filter: blur(6px);
+        background-color: #f6f6f5cc;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .navbar-logo-left-container {
+        z-index: 5;
+        background-color: transparent;
+        width: 100%;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 20px 20px;
+      }
+      .navbar-wrapper {
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1220px;
+        margin: 0 auto;
+        display: flex;
+      }
+      .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-decoration: none;
+        padding-left: 0;
+      }
+      .navbar-logo {
+        width: 86px;
+      }
+      .nav-labs-divider {
+        width: 1px;
+        height: 22px;
+        background: var(--dark-beige);
+      }
+      .nav-labs-badge {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        background: linear-gradient(
+          135deg,
+          #7c3aed,
+          #a855f7,
+          #6366f1,
+          #a855f7,
+          #7c3aed
+        );
+        background-size: 300% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 4s ease-in-out infinite;
+        padding-top: 2px;
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
 
-  .nav-menu {
-    display: flex;
-    align-items: center;
-    list-style: none;
-    gap: 20px;
-    padding: 0;
-  }
-  .nav-menu-link {
-    color: var(--mid-grey);
-    align-self: center;
-    padding-left: 10px;
-    padding-right: 10px;
-    font-size: .875rem;
-    font-weight: 400;
-    text-decoration: none;
-    transition: color .2s;
-  }
-  .nav-menu-link:hover { color: var(--black); }
-  .main-cta {
-    background-color: var(--black);
-    color: var(--beige);
-    text-align: center;
-    border-radius: 2000px;
-    max-width: 180px;
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 12px 24px;
-    font-size: .875rem;
-    font-weight: 500;
-    transition: color .2s, background-color .2s, box-shadow .2s;
-    display: flex;
-    box-shadow: 2px 2px 12px #0003;
-    text-decoration: none;
-    line-height: 20px;
-    cursor: pointer;
-    border: 0;
-  }
-  .main-cta:hover {
-    background-color: #212527;
-    box-shadow: 2px 2px 12px #0000001a;
-    color: var(--beige);
-  }
+      .nav-menu {
+        display: flex;
+        align-items: center;
+        list-style: none;
+        gap: 20px;
+        padding: 0;
+      }
+      .nav-menu-link {
+        color: var(--mid-grey);
+        align-self: center;
+        padding-left: 10px;
+        padding-right: 10px;
+        font-size: 0.875rem;
+        font-weight: 400;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .nav-menu-link:hover {
+        color: var(--black);
+      }
+      .main-cta {
+        background-color: var(--black);
+        color: var(--beige);
+        text-align: center;
+        border-radius: 2000px;
+        max-width: 180px;
+        margin-top: 0;
+        margin-bottom: 0;
+        padding: 12px 24px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition:
+          color 0.2s,
+          background-color 0.2s,
+          box-shadow 0.2s;
+        display: flex;
+        box-shadow: 2px 2px 12px #0003;
+        text-decoration: none;
+        line-height: 20px;
+        cursor: pointer;
+        border: 0;
+      }
+      .main-cta:hover {
+        background-color: #212527;
+        box-shadow: 2px 2px 12px #0000001a;
+        color: var(--beige);
+      }
 
-  .hero-section {
-    padding: 60px 20px 20px;
-    display: flex;
-    flex-flow: column;
-    align-items: center;
-  }
-  .heading-2 {
-    color: var(--black);
-    text-align: center;
-    align-self: center;
-    max-width: 700px;
-    margin-bottom: 0;
-    font-size: 3rem;
-    font-weight: 400;
-    line-height: 64px;
-  }
-  .hero-subtitle {
-    text-align: center;
-    color: var(--mid-grey);
-    font-size: 1rem;
-    line-height: 1.6;
-    max-width: 560px;
-    margin-top: 16px;
-  }
+      .hero-section {
+        padding: 60px 20px 20px;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+      }
+      .heading-2 {
+        color: var(--black);
+        text-align: center;
+        align-self: center;
+        max-width: 700px;
+        margin-bottom: 0;
+        font-size: 3rem;
+        font-weight: 400;
+        line-height: 64px;
+      }
+      .hero-subtitle {
+        text-align: center;
+        color: var(--mid-grey);
+        font-size: 1rem;
+        line-height: 1.6;
+        max-width: 560px;
+        margin-top: 16px;
+      }
 
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 32px;
-    padding: 40px 20px 80px;
-    max-width: 1060px;
-    margin: 0 auto;
-  }
-  .proto-card {
-    background-image: linear-gradient(90deg, #ffffffb3, #f6f6f54d);
-    border: 1px solid #c9c9c466;
-    border-radius: 20px;
-    box-shadow: 2px 2px 12px 0 var(--black-shadow);
-    overflow: hidden;
-    cursor: pointer;
-    text-decoration: none;
-    color: inherit;
-    display: block;
-    transition: box-shadow 0.2s, transform 0.2s;
-  }
-  .proto-card:hover {
-    box-shadow: 2px 2px 20px 0 #0f111228;
-    transform: translateY(-2px);
-  }
-  .proto-card-img {
-    width: 100%;
-    height: 220px;
-    background: var(--beige);
-    border-bottom: 1px solid #c9c9c433;
-    overflow: hidden;
-  }
-  .proto-card-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .proto-card-body {
-    padding: 28px 32px;
-  }
-  .proto-card-body h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: var(--black);
-  }
-  .proto-card-body p {
-    font-size: .875rem;
-    color: var(--mid-grey);
-    line-height: 1.7;
-    margin-bottom: 18px;
-  }
-  .proto-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 12px;
-    color: var(--dark-beige);
-  }
-  .proto-card-tag {
-    background: #f6f6f5;
-    border: 1px solid #c9c9c444;
-    padding: 3px 12px;
-    border-radius: 100px;
-    font-weight: 500;
-    font-size: 12px;
-    color: var(--mid-grey);
-  }
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 32px;
+        padding: 40px 20px 80px;
+        max-width: 1060px;
+        margin: 0 auto;
+      }
+      .proto-card {
+        background-image: linear-gradient(90deg, #ffffffb3, #f6f6f54d);
+        border: 1px solid #c9c9c466;
+        border-radius: 20px;
+        box-shadow: 2px 2px 12px 0 var(--black-shadow);
+        overflow: hidden;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition:
+          box-shadow 0.2s,
+          transform 0.2s;
+      }
+      .proto-card:hover {
+        box-shadow: 2px 2px 20px 0 #0f111228;
+        transform: translateY(-2px);
+      }
+      .proto-card-img {
+        width: 100%;
+        height: 220px;
+        background: var(--beige);
+        border-bottom: 1px solid #c9c9c433;
+        overflow: hidden;
+      }
+      .proto-card-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .proto-card-body {
+        padding: 28px 32px;
+      }
+      .proto-card-body h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--black);
+      }
+      .proto-card-body p {
+        font-size: 0.875rem;
+        color: var(--mid-grey);
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+      .proto-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--dark-beige);
+      }
+      .proto-card-tag {
+        background: #f6f6f5;
+        border: 1px solid #c9c9c444;
+        padding: 3px 12px;
+        border-radius: 100px;
+        font-weight: 500;
+        font-size: 12px;
+        color: var(--mid-grey);
+      }
 
-  @media screen and (max-width: 767px) {
-    .heading-2 {
-      font-size: 2rem;
-      line-height: 44px;
-    }
-    .cards-grid {
-      grid-template-columns: 1fr;
-      padding: 24px 16px 60px;
-    }
-  }
-</style>
-</head>
-<body>
+      @media screen and (max-width: 767px) {
+        .heading-2 {
+          font-size: 2rem;
+          line-height: 44px;
+        }
+        .cards-grid {
+          grid-template-columns: 1fr;
+          padding: 24px 16px 60px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="navbar-logo-left">
+      <div class="navbar-logo-left-container">
+        <div class="navbar-wrapper">
+          <a href="https://www.yottar.tech" class="navbar-brand">
+            <img
+              class="navbar-logo"
+              src="https://cdn.prod.website-files.com/6979e70baa52fbb0a26ec02a/6979e70baa52fbb0a26ec000_Yottar%20Full%20Logo%20(2).png"
+              alt="Yottar"
+            />
+            <div class="nav-labs-divider"></div>
+            <span class="nav-labs-badge">Labs</span>
+          </a>
+          <ul class="nav-menu">
+            <li>
+              <a href="https://www.yottar.tech/about" class="nav-menu-link"
+                >About</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://calendly.com/jon-yottar/yottar-introduction-call"
+                class="main-cta"
+                >Book a Demo</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
-<div class="navbar-logo-left">
-  <div class="navbar-logo-left-container">
-    <div class="navbar-wrapper">
-      <a href="https://www.yottar.tech" class="navbar-brand">
-        <img class="navbar-logo" src="https://cdn.prod.website-files.com/6979e70baa52fbb0a26ec02a/6979e70baa52fbb0a26ec000_Yottar%20Full%20Logo%20(2).png" alt="Yottar">
-        <div class="nav-labs-divider"></div>
-        <span class="nav-labs-badge">Labs</span>
+    <div class="hero-section">
+      <h1 class="heading-2">Prototypes & Experiments</h1>
+      <p class="hero-subtitle">
+        Interactive proof-of-concepts exploring grid connection data, built by
+        the Yottar team.
+      </p>
+    </div>
+
+    <div class="cards-grid">
+      <a class="proto-card" href="./npg-poc-finder/">
+        <div class="proto-card-img">
+          <img
+            src="./npg-poc-finder/screenshot.png"
+            alt="NPG POC Finder screenshot"
+          />
+        </div>
+        <div class="proto-card-body">
+          <h3>NPG POC Finder</h3>
+          <p>
+            Find and analyse points of connection to the Northern Powergrid
+            electricity distribution network. Search by location, compare
+            multiple sites, detect obstacles, and generate PDF reports.
+          </p>
+          <div class="proto-card-meta">
+            <span class="proto-card-tag">Northern Powergrid</span>
+            <span>February 2026</span>
+          </div>
+        </div>
       </a>
-      <ul class="nav-menu">
-        <li><a href="https://www.yottar.tech/about" class="nav-menu-link">About</a></li>
-        <li><a href="https://calendly.com/jon-yottar/yottar-introduction-call" class="main-cta">Book a Demo</a></li>
-      </ul>
-    </div>
-  </div>
-</div>
 
-<div class="hero-section">
-  <h1 class="heading-2">Prototypes & Experiments</h1>
-  <p class="hero-subtitle">Interactive proof-of-concepts exploring grid connection data, built by the Yottar team.</p>
-</div>
-
-<div class="cards-grid">
-  <a class="proto-card" href="./npg-poc-finder/">
-    <div class="proto-card-img">
-      <img src="./npg-poc-finder/screenshot.png" alt="NPG POC Finder screenshot">
+      <a class="proto-card" href="./nged-connection-points/">
+        <div class="proto-card-img">
+          <img
+            src="./nged-connection-points/screenshot.png"
+            alt="NGED Connection Points screenshot"
+          />
+        </div>
+        <div class="proto-card-body">
+          <h3>NGED Connection Points</h3>
+          <p>
+            Explore grid connection options across the NGED network area. Click
+            any location to discover nearby circuits, substations, and
+            transformers with capacity ratings.
+          </p>
+          <div class="proto-card-meta">
+            <span class="proto-card-tag">NGED</span>
+            <span>April 2026</span>
+          </div>
+        </div>
+      </a>
     </div>
-    <div class="proto-card-body">
-      <h3>NPG POC Finder</h3>
-      <p>Find and analyse points of connection to the Northern Powergrid electricity distribution network. Search by location, compare multiple sites, detect obstacles, and generate PDF reports.</p>
-      <div class="proto-card-meta">
-        <span class="proto-card-tag">Northern Powergrid</span>
-        <span>February 2026</span>
-      </div>
-    </div>
-  </a>
-
-  <a class="proto-card" href="./nged-connection-points/">
-    <div class="proto-card-img">
-      <img src="./nged-connection-points/screenshot.png" alt="NGED Connection Points screenshot">
-    </div>
-    <div class="proto-card-body">
-      <h3>NGED Connection Points</h3>
-      <p>Explore grid connection options across the NGED network area. Click any location to discover nearby circuits, substations, and transformers with capacity ratings.</p>
-      <div class="proto-card-meta">
-        <span class="proto-card-tag">NGED</span>
-        <span>April 2026</span>
-      </div>
-    </div>
-  </a>
-</div>
-
-</body>
+  </body>
 </html>
