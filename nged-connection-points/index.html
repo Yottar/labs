@@ -956,22 +956,8 @@ function renderResults(results) {
   // Sort voltages in ascending order (only voltages present)
   const voltagesPresent = VOLTAGE_ORDER.filter(v => groups[v]);
 
-  // On first search, expand voltages + substations + circuits
-  const isFirstRender = expandAllOnNextRender;
   if (expandAllOnNextRender) {
     expandAllOnNextRender = false;
-    expandedSubstations.clear();
-    expandedCircuits.clear();
-    for (const v of voltagesPresent) expandedVoltages.add(v);
-    // Pre-expand all substations and circuits within each voltage
-    for (const v of voltagesPresent) {
-      for (const r of groups[v]) {
-        const src = r.stats.source || '_none';
-        const cid = r.stats.circuitId || '_none';
-        expandedSubstations.add(`${v}_${src}`);
-        expandedCircuits.add(`${v}_${src}_${cid}`);
-      }
-    }
   }
 
   const fmtDist = d => d >= 1 ? `${d.toFixed(1)}km` : `${Math.round(d * 1000)}m`;
@@ -1331,6 +1317,7 @@ function clearSite() {
   clearConnectionLayer();
   clearHighlight();
   removeSegmentHoverLayer();
+  refreshMap();
   document.getElementById('right-panel').style.display = 'none';
   document.querySelector('.panel-subtitle').textContent = 'Click map to place a site';
   updateHash();
