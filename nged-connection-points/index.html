@@ -411,7 +411,7 @@ let mvaSliderMax = 100;
 const hiddenVoltages = new Set();
 
 // ---------------------------------------------------------------------------
-// URL hash: #zoom/lat/lng or #zoom/lat/lng/siteLat/siteLng
+// URL hash: #zoom/lat/lng or #zoom/lat/lng/siteLat/siteLng or #zoom/lat/lng/siteLat/siteLng/branchId
 // ---------------------------------------------------------------------------
 function parseHash() {
   const hash = location.hash.replace(/^#/, '');
@@ -428,7 +428,11 @@ function parseHash() {
     siteLng = parseFloat(parts[4]);
     if (isNaN(siteLat) || isNaN(siteLng)) { siteLat = null; siteLng = null; }
   }
-  return { zoom, lat, lng, siteLat, siteLng };
+  let branchId = null;
+  if (parts.length >= 6 && parts[5]) {
+    branchId = decodeURIComponent(parts[5]);
+  }
+  return { zoom, lat, lng, siteLat, siteLng, branchId };
 }
 
 function updateHash() {
@@ -437,6 +441,9 @@ function updateHash() {
   const parts = [z.toFixed(1), c.lat.toFixed(5), c.lng.toFixed(5)];
   if (siteLatlng) {
     parts.push(siteLatlng.lat.toFixed(5), siteLatlng.lng.toFixed(5));
+    if (selectedBranchId) {
+      parts.push(encodeURIComponent(selectedBranchId));
+    }
   }
   const newHash = '#' + parts.join('/');
   if (location.hash !== newHash) {
@@ -1154,6 +1161,7 @@ function selectBranch(branchId) {
     refreshMap();
     drawConnections(searchResults);
     renderResults(searchResults);
+    updateHash();
     return;
   }
 
@@ -1174,6 +1182,7 @@ function selectBranch(branchId) {
   drawConnections(searchResults);
   renderResults(searchResults);
   addSegmentHoverLayer(branchId);
+  updateHash();
 }
 
 // ---------------------------------------------------------------------------
@@ -1571,6 +1580,10 @@ async function init() {
         weight: 2,
       }).addTo(map);
       runSearch();
+      // Restore selected branch from URL hash
+      if (initialView.branchId && branchIndex[initialView.branchId]) {
+        selectBranch(initialView.branchId);
+      }
     }
 
     document.getElementById('loading').style.display = 'none';
